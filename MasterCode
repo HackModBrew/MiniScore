@@ -31,7 +31,7 @@ long timeStart = 0, timeTotal = 0, timeRemaining = 0;
 //BEER COUNT
 int beerCount = 0;
 float bacLevel = 0;
-long bacTime = 0
+long bacTime = 0;
 
 
 void setup() {
