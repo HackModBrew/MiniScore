@@ -1,0 +1,99 @@
+#include <LiquidCrystal.h>
+const int rs = 12, en = 11, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
+const int btnPin[] = {0, 1, 2, 3}; //Left Up, Left Down, Right Up, Right Down
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+int btnVal[] = {0, 0, 0, 0};
+//char *ModeSelectStrings[] = {"SCOREBOARD", "TIMER", "DICE", "BEER COUNT"};
+int btnState[] = {1, 1, 1, 1};
+int lastBtnState[] = {1, 1, 1, 1};
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 50;
+
+//SCORE
+int homeScore = 0, awayScore = 0;
+int btnPress[] = {0,0,0,0};
+
+void setup() {
+  pinMode(btnPin[0], INPUT_PULLUP); //LEFT UP
+  pinMode(btnPin[1], INPUT_PULLUP); //LEFT UP
+  pinMode(btnPin[2], INPUT_PULLUP); //LEFT UP
+  pinMode(btnPin[3], INPUT_PULLUP); //LEFT UP
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  lcd.print("SCORE:");
+  lcd.setCursor(0, 1);
+  lcd.print("00");
+  lcd.setCursor(14, 1);
+  lcd.print("00");
+  randomSeed(analogRead(0));
+  Serial.begin(9600);
+}
+
+void loop() {
+  readButtons();
+  if (btnPress[0] == 1) {
+    homeScore++;
+    lcd.setCursor(0, 1);
+    if (homeScore < 10) {
+      lcd.print("0");
+      lcd.setCursor(1, 1);
+    }
+    lcd.print(homeScore);
+  }
+  if (btnPress[1] == 1) {
+    homeScore--;
+    lcd.setCursor(0, 1);
+    if (homeScore < 10) {
+      lcd.print("0");
+      lcd.setCursor(1, 1);
+    }
+    if (homeScore >= 0) {
+      lcd.print(homeScore);
+    }
+  }
+  if (btnPress[2] == 1) {
+    awayScore++;
+    lcd.setCursor(14, 1);
+    if (awayScore < 10) {
+      lcd.print("0");
+      lcd.setCursor(15, 1);
+    }
+    lcd.print(awayScore);
+  }
+  if (btnPress[3] == 1) {
+    awayScore--;
+    lcd.setCursor(14, 1);
+    if (awayScore < 10) {
+      lcd.print("0");
+      lcd.setCursor(15, 1);
+    }
+    if (awayScore >= 0) {
+      lcd.print(awayScore);
+    }
+  }
+  //leftupval
+}//loop
+
+void readButtons() {
+  for (int i = 0; i <= 3; i++) {
+    btnPress[i] = 0;
+    btnVal[i] = digitalRead(btnPin[i]);
+    if (btnVal[i] != lastBtnState[i]) {
+      lastDebounceTime = millis();
+    }
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+      if (btnVal[i] != btnState[i]) {
+        btnState[i] = btnVal[i];
+        if (btnState[i] == 0) {
+          btnPress[i] = 1;
+          Serial.print(i);
+          Serial.println(btnPress[i]);
+        }
+        //Serial.print(i);
+       // Serial.println(btnVal[i]);
+      }
+    }
+    lastBtnState[i] = btnVal[i];
+  }
+}
