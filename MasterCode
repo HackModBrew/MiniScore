@@ -1,0 +1,294 @@
+#include <LiquidCrystal.h>
+const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+const int btnPins[] = {6, 7, 8, 9}; //Left Up, Left Down, Right Up, Right Down
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+int btnVal[] = {0, 0, 0, 0};
+char *ModeSelectStrings[] = {"SCOREBOARD", "TIMER", "DICE", "BEER COUNT"};
+int mode = 0; //0=scoreboard, 1=timer, 2=dice, 3=battery, 4=beer count
+//int modeSelect = 0;
+int menuList = 1; //in menu = 1
+int btnState[] = {0, 0, 0, 0};
+int lastBtnState[] = {0, 0, 0, 0};
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 50;
+
+//DICE
+int numberOfDice = 1;
+int numberOfSides = 6;
+int rollCount = 0;
+int numberOfDiceValid = 0, numberOfSidesValid = 0;
+
+//SCORE
+int homeScore = 0, awayScore = 0;
+
+//TIMER
+int minutesValid = 0, secondsValid = 0;
+int minutes = 0, seconds = 45;
+int timerRunning = 0;
+long timeStart = 0, timeTotal = 0, timeRemaining = 0; 
+
+//BEER COUNT
+int beerCount = 0;
+float bacLevel = 0;
+long bacTime = 0
+
+
+void setup() {
+  pinMode(btnPins[], INPUT_PULLUP); //LEFT UP
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  lcd.print("MODE:");
+  lcd.setCursor(0, 1);
+  lcd.print(ModeSelectStrings([modeSelect]));
+  randomSeed(analogRead(0));
+  Serial.begin(9600);
+}
+
+void loop() {
+  readButtons();
+  if (menuList == 1) {
+    menuFunction();
+  }
+  else {
+    if (mode == 0) { //scoreboard
+      scoreBoard();
+    }//mode 0
+    else if (mode == 1) {
+      timer();
+    }
+    else if (mode == 2) {
+      dice();
+    }
+    else if (mode == 3){ //mode 3
+      battery();
+    }
+    else {
+      beerCount();
+    }
+  }
+  //leftupval
+}//loop
+
+void readButtons() {
+  for (int i = 0; i <= 3; i++) {
+    btnVal[i] = digitalRead(btnPin[i]);
+    if (btnVal[i] != lastBtnState[i]) {
+      lastDebounceTime = millis();
+    }
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+      if (btnVal[i] != btnState[i]) {
+        btnState[i] = btnVal[i];
+      }
+    }
+  }
+}
+
+void menuFunction() {
+  if (btnVal[0] == HIGH) {
+    mode++;
+    if (mode >= 3) {
+      mode = 0;
+    }//mode select>=3
+    lcd.setCursor(0, 1);
+    lcd.print(ModeSelectStrings([modeSelect]));
+  }//btnval 0
+  if (btnVal[1] == HIGH) {
+    mode--;
+    if (mode <= 0) {
+      mode = 4;
+    }//mode select<=0
+    lcd.setCursor(0, 1);
+    lcd.print(ModeSelectStrings([modeSelect]));
+  }//btnval 1
+  if (btnVal[3] == HIGH) {
+    menuList = 0;
+    switch (mode) {
+      case 0: //scoreboard
+        lcd.setCursor(0, 0);
+        lcd.print("HOME        AWAY");
+        break;
+      case 1: //timer
+        lcd.setCursor(0, 0);
+        lcd.print("SET TIMER");
+        lcd.setCursor(0, 1);
+        lcd.print("MINUTES: ");
+        lcd.print(minutes);
+        break;
+    } //switch mode
+  } //btnVal[3] == HIGH
+} //menuFunction()
+void beerCount() {
+  if (btnVal[0] == HIGH) {
+    beerCount++;
+  }
+  if (btnVal[1] == HIGH) {
+    if (beerCount >0) {
+      beerCount--;
+    } //if (beerCount >0)
+  } //if (btnVal[1] == HIGH)
+  lcd.setCursor(0,0);
+  lcd.print("BEER COUNT: ");
+  lcd.print(beerCount);
+}
+
+void timer() {
+  if (btnVal[0] == HIGH && minutesValid != 1) {
+    minutes++;
+    lcd.setCursor(9, 1);
+    if (minutes < 10) {
+      lcd.print("0");
+      lcd.setCursor(10, 1);
+    }
+    lcd.print(minutes);
+   
+  }//btnVal[0] == HIGH && timerValid != 1
+  else if (btnVal[0] == HIGH && secondsValid != 1) {
+    seconds++;
+    if (seconds > 59) {
+      seconds = 0;
+    }
+    lcd.setCursor(9, 1);
+    if (minutes < 10) {
+      lcd.print("0");
+      lcd.setCursor(10, 1);
+    }
+    lcd.print(seconds);
+   
+  }//btnVal[0] == HIGH && timerValid != 1
+  if (btnVal[1] == HIGH && minutesValid != 1) {
+    minutes--;
+    lcd.setCursor(9, 1);
+    if (minutes < 10) {
+      lcd.print("0");
+      lcd.setCursor(10, 1);
+    }
+    lcd.print(minutes);
+  }//btnVal[1] == HIGH && timerValid != 1
+  else if (btnVal[1] == HIGH && secondsValid != 1) {
+    seconds--;
+    if (seconds < 0) {
+      seconds = 59;
+    }
+    lcd.setCursor(9, 1);
+    if (minutes < 10) {
+      lcd.print("0");
+      lcd.setCursor(10, 1);
+    }
+    lcd.print(seconds);
+  }//btnVal[1] == HIGH && timerValid != 1
+  if (btnVal[3] == HIGH && minutesValid != 1) {
+    minutesValid = 1;
+  }
+  else if (btnVal[3] == HIGH && secondsValid != 1) {
+    secondsValid = 1;
+  }
+  else if (btnVal[3] == HIGH) {
+    if (timerRunning == 1) {
+      timerRunning = 0;
+      lcd.setCursor(0,1);
+      if (minutes < 10) {
+        lcd.print("0");
+      }
+      lcd.print(minutes);
+      lcd.print("m ");
+      if (seconds < 10) {
+        lcd.print("0");
+      } //if (seconds < 10) {
+      lcd.print(seconds);
+      lcd.print("s");
+    } //if (timerRunning == 1) {
+    else {
+      timeStart = millis();
+      timerRunning = 1;
+      timeTotal = (minutes*60+seconds)*1000;
+    } //else timer running = 0
+  } //else if (btnVal[3] == HIGH) 
+  if {
+} //timer()
+
+
+void scoreBoard() {
+  if (btnVal[0] == HIGH) {
+    homeScore++;
+    lcd.setCursor(0, 1);
+    if (homeScore < 10) {
+      lcd.print("0");
+      lcd.setCursor(1, 1);
+    }
+    lcd.print(homeScore);
+  }
+  if (btnVal[1] == HIGH) {
+    homeScore--;
+    lcd.setCursor(0, 1);
+    if (homeScore < 10) {
+      lcd.print("0");
+      lcd.setCursor(1, 1);
+    }
+    lcd.print(homeScore);
+  }
+  if (btnVal[2] == HIGH) {
+    awayScore++;
+    lcd.setCursor(14, 1);
+    if (awayScore < 10) {
+      lcd.print("0");
+      lcd.setCursor(15, 1);
+    }
+    lcd.print(awayScore);
+  }
+  if (btnVal[3] == HIGH) {
+    awayScore--;
+    lcd.setCursor(14, 1);
+    if (awayScore < 10) {
+      lcd.print("0");
+      lcd.setCursor(15, 1);
+    }
+    lcd.print(awayScore);
+  }
+}
+
+void dice() {
+  if (numberOfDiceValid != 1) {
+    if (btnVal[0] == HIGH) {
+      numberOfDice++;
+    } //btnVal[0] == HIGH
+    if (btnVal[1] == HIGH) {
+      if (numberOfDice > 1) {
+        numberOfDice--;
+      } //numberOfDice > 1
+    } //btnVal[1] == HIGH
+    if (btnVal[3] == HIGH) {
+      numberOfDiceValid = 1;
+    } //btnVal[3] == HIGH
+    lcd.setCursor(0, 0);
+    lcd.print("NUMBER OF DICE:");
+    lcd.setCursor(0, 1);
+    lcd.print(numberOfDice);
+  } //numberOfDiceValid != 1
+  else if (numberOfSidesValid != 1) {
+    if (btnVal[0] == HIGH) {
+      numberOfSides++;
+    } //btnVal[0] == HIGH
+    if (btnVal[1] == HIGH) {
+      if (numberOfSides > 2) {
+        numberOfSides--;
+      } //numberOfSides > 1
+    } //btnVal[1] == HIGH
+    if (btnVal[3] == HIGH) {
+      numberOfSidesValid = 1;
+    } //btnVal[3] == HIGH
+    lcd.setCursor(0, 0);
+    lcd.print("NUMBER OF SIDES:");
+    lcd.setCursor(0, 1);
+    lcd.print(numberOfSides);
+  } //numberOfSidesValid != 1
+  else if (btnVal[3] == HIGH) { //dice Roll
+    rollCount++;
+    lcd.setCursor(0, 0);
+    lcd.print("DICE ROLL: ");
+    lcd.print(rollCount);
+    lcd.setCursor(0, 1);
+  } //btnVal[3] == HIGH
+} //dice()
+
+
